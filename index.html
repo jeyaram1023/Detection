@@ -4,45 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Object & Animal Observer</title>
-    
     <link rel="stylesheet" href="style.css">
-    
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@latest/dist/coco-ssd.min.js"></script>
 </head>
 <body>
-
-    <div id="loader">
-        <p>🚀 Initializing... Please wait.</p>
+    <div id="loading-container">
+        <div class="spinner"></div>
+        <p>Loading Model...</p>
     </div>
 
-    <div id="app-container">
-        
-        <video id="webcam" autoplay playsinline muted width="640" height="480"></video>
-        
-        <canvas id="canvas"></canvas>
+    <video id="webcam" autoplay muted playsinline></video>
+    <canvas id="canvas"></canvas>
 
-        <div class="menu-wrapper">
-            <button id="menu-toggle" aria-label="Open Menu">☰</button>
-            <nav id="dropdown-menu">
-                <a href="#" id="helpBtn">📘 Help</a>
-                <a href="#" id="snapshotBtn">🖼️ Snapshot</a>
-                <a href="#" id="switchModeBtn">🔁 Switch Mode</a>
-            </nav>
+    <div id="flash-overlay"></div>
+
+    <div class="menu-container">
+        <button id="menu-toggle">☰</button>
+        <div id="menu-dropdown" class="hidden">
+            <button id="help-btn">📘 Help</button>
+            <button id="snapshot-btn">🖼️ Snapshot</button>
+            <button id="mode-btn">🔁 Switch to Animals</button>
         </div>
+    </div>
 
-        <div class="controls-wrapper">
-            <button id="cameraBtn">📷 Turn On Camera</button>
-            <button id="flashBtn">💡 Flash</button>
+    <div class="controls-container">
+        <button id="camera-btn">📷 Turn On Camera</button>
+        <button id="flash-btn">💡 Flash</button>
+    </div>
+
+    <div id="help-modal" class="hidden">
+        <div class="modal-content">
+            <span id="close-modal">&times;</span>
+            <h2>How to Use</h2>
+            <p><strong>Camera On/Off:</strong> Use the 📷 button to start or stop your webcam.</p>
+            <p><strong>Detections:</strong> The app automatically detects objects and draws boxes around them.</p>
+            <p><strong>Switch Mode:</strong> Use the 🔁 button in the menu to toggle between detecting all objects and only specific animals.</p>
+            <p><strong>Snapshot:</strong> Capture the current view with detections using the 🖼️ button.</p>
+            <p><strong>Flash:</strong> The 💡 button simulates a camera flash.</p>
         </div>
-
-        <div id="flash-overlay"></div>
-
     </div>
 
     <script src="script.js"></script>
-
 </body>
 </html>
