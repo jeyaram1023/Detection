@@ -1,0 +1,178 @@
+/* General Body and Layout */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121212;
+    color: #fff;
+    overflow: hidden; /* Prevent scrollbars */
+}
+
+/* Video and Canvas Elements */
+#webcam, #canvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 100%;
+    min-height: 100%;
+    width: auto;
+    height: auto;
+    object-fit: cover;
+}
+
+#canvas {
+    z-index: 10;
+}
+
+#webcam {
+    display: none; /* Hide video, show canvas */
+}
+
+/* Loading Spinner */
+#loading-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    color: white;
+}
+.spinner {
+    border: 8px solid #f3f3f3;
+    border-top: 8px solid #3498db;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* UI Controls Base Styles */
+.menu-container, .controls-container {
+    position: fixed;
+    z-index: 20;
+}
+button {
+    background-color: rgba(30, 30, 30, 0.8);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    backdrop-filter: blur(5px);
+    transition: background-color 0.2s, transform 0.2s;
+}
+button:hover {
+    background-color: rgba(50, 50, 50, 0.9);
+}
+button:active {
+    transform: scale(0.95);
+}
+
+/* Top-Right Floating Menu */
+.menu-container {
+    top: 20px;
+    right: 20px;
+}
+#menu-dropdown {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    background-color: rgba(40, 40, 40, 0.9);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    width: max-content;
+}
+#menu-dropdown button {
+    border: none;
+    border-radius: 0;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+#menu-dropdown button:last-child {
+    border-bottom: none;
+}
+
+/* Bottom Center Controls */
+.controls-container {
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+}
+
+/* Flash Effect */
+#flash-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    opacity: 0;
+    z-index: 99;
+    pointer-events: none;
+    transition: opacity 0.3s ease-out;
+}
+#flash-overlay.flash {
+    opacity: 1;
+}
+
+/* Help Modal */
+#help-modal {
+    position: fixed;
+    z-index: 50;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #2a2a2a;
+    padding: 30px;
+    border-radius: 15px;
+    border: 1px solid #444;
+    width: 80%;
+    max-width: 500px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.modal-content h2 {
+    margin-top: 0;
+    color: #3498db;
+}
+.modal-content p {
+    line-height: 1.6;
+}
+#close-modal {
+    color: #aaa;
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Utility Class */
+.hidden {
+    display: none !important;
+}
