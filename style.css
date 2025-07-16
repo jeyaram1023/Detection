@@ -5,6 +5,8 @@ body {
     background-color: #121212;
     color: #fff;
     overflow: hidden; /* Prevent scrollbars */
+    /* Improve touch interaction on mobile */
+    touch-action: manipulation;
 }
 
 /* Video and Canvas Elements */
@@ -35,13 +37,15 @@ body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.8);
+    background: rgba(0, 0, 0, 0.9);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     z-index: 100;
     color: white;
+    text-align: center;
+    padding: 20px;
 }
 .spinner {
     border: 8px solid #f3f3f3;
@@ -50,6 +54,7 @@ body {
     width: 60px;
     height: 60px;
     animation: spin 1s linear infinite;
+    margin-bottom: 20px;
 }
 @keyframes spin {
     0% { transform: rotate(0deg); }
@@ -61,21 +66,23 @@ body {
     position: fixed;
     z-index: 20;
 }
-button {
-    background-color: rgba(30, 30, 30, 0.8);
+.ui-button {
+    background-color: rgba(30, 30, 30, 0.75);
     color: white;
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 10px;
-    padding: 12px 20px;
-    font-size: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 15px;
+    padding: 15px; /* Larger padding for touch */
+    font-size: 20px; /* Larger font size */
     cursor: pointer;
-    backdrop-filter: blur(5px);
+    backdrop-filter: blur(8px);
     transition: background-color 0.2s, transform 0.2s;
+    min-width: 60px;
+    text-align: center;
 }
-button:hover {
+.ui-button:hover {
     background-color: rgba(50, 50, 50, 0.9);
 }
-button:active {
+.ui-button:active {
     transform: scale(0.95);
 }
 
@@ -86,7 +93,7 @@ button:active {
 }
 #menu-dropdown {
     position: absolute;
-    top: 55px;
+    top: 70px; /* Adjusted for larger button */
     right: 0;
     background-color: rgba(40, 40, 40, 0.9);
     border-radius: 10px;
@@ -100,6 +107,8 @@ button:active {
     border: none;
     border-radius: 0;
     text-align: left;
+    width: 100%;
+    padding: 15px 25px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 #menu-dropdown button:last-child {
@@ -108,12 +117,17 @@ button:active {
 
 /* Bottom Center Controls */
 .controls-container {
-    bottom: 20px;
+    bottom: 30px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    gap: 15px;
+    gap: 20px;
 }
+.controls-container .ui-button {
+    font-size: 16px;
+    padding: 15px 25px;
+}
+
 
 /* Flash Effect */
 #flash-overlay {
@@ -150,7 +164,7 @@ button:active {
     padding: 30px;
     border-radius: 15px;
     border: 1px solid #444;
-    width: 80%;
+    width: 85%;
     max-width: 500px;
     position: relative;
     box-shadow: 0 5px 15px rgba(0,0,0,0.5);
@@ -167,7 +181,7 @@ button:active {
     position: absolute;
     top: 15px;
     right: 20px;
-    font-size: 28px;
+    font-size: 32px;
     font-weight: bold;
     cursor: pointer;
 }
@@ -176,3 +190,4 @@ button:active {
 .hidden {
     display: none !important;
 }
+
