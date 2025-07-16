@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const loadingContainer = document.getElementById('loading-container');
+    const loadingText = document.getElementById('loading-text');
     const cameraBtn = document.getElementById('camera-btn');
     const flashBtn = document.getElementById('flash-btn');
     const flashOverlay = document.getElementById('flash-overlay');
@@ -14,58 +15,63 @@ document.addEventListener('DOMContentLoaded', () => {
     const modeBtn = document.getElementById('mode-btn');
     const helpModal = document.getElementById('help-modal');
     const closeModal = document.getElementById('close-modal');
+    const menuContainer = document.querySelector('.menu-container');
 
     // State variables
     let model = null;
     let stream = null;
     let isCameraOn = false;
+    let isFlashOn = false;
     let detectionInterval = null;
     let detectionMode = 'all'; // 'all' or 'animals'
-    const animalList = ['dog', 'cat', 'bird', 'cow', 'elephant']; // COCO-SSD supports dog, cat, bird
+    const animalList = ['dog', 'cat', 'bird', 'cow', 'elephant', 'bear', 'zebra', 'giraffe'];
 
     // Load COCO-SSD model
-    async function loadModel() {
-        try {
-            model = await cocoSsd.load();
-            loadingContainer.classList.add('hidden');
-            console.log('Model loaded successfully.');
-        } catch (error) {
-            console.error('Failed to load model:', error);
-            loadingContainer.innerHTML = '<p>Failed to load model. Please refresh.</p>';
-        }
-    }
-    loadModel();
-
-    // Toggle Camera
-    cameraBtn.addEventListener('click', async () => {
-        if (isCameraOn) {
-            stopCamera();
-        } else {
-            await startCamera();
-        }
+    cocoSsd.load().then(loadedModel => {
+        model = loadedModel;
+        loadingContainer.classList.add('hidden');
+    }).catch(error => {
+        console.error('Failed to load model:', error);
+        loadingText.textContent = 'Failed to load AI model. Please check your connection and refresh.';
     });
 
     // Start the webcam
     async function startCamera() {
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            loadingText.textContent = 'Please grant camera permission...';
+            loadingContainer.classList.remove('hidden');
             try {
+                // ***MODIFIED***: Using a more generic constraint to improve compatibility
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'environment' } // Prefer back camera
+                    video: { facingMode: 'environment' }
                 });
                 video.srcObject = stream;
-                video.style.display = 'block'; // Show video to establish dimensions
                 isCameraOn = true;
                 cameraBtn.textContent = '📷 Turn Off Camera';
-                
+                video.style.display = 'block';
+
                 video.onloadedmetadata = () => {
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
-                    video.style.display = 'none'; // Hide video, use canvas for display
-                    detectionInterval = setInterval(detectFrame, 100); // Start detection loop
+                    video.style.display = 'none';
+                    loadingContainer.classList.add('hidden');
+                    detectionInterval = setInterval(detectFrame, 100);
                 };
             } catch (error) {
+                loadingContainer.classList.add('hidden');
                 console.error('Error accessing webcam:', error);
-                alert('Could not access your camera. Please ensure permissions are granted.');
+                // Handle cases where the back camera is not available
+                if (error.name === 'OverconstrainedError' || error.name === 'NotFoundError') {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia({ video: true }); // Fallback to any camera
+                        video.srcObject = stream;
+                        // ... (repeat setup logic as above)
+                    } catch (fallbackError) {
+                        alert('Could not access any camera. Please ensure permissions are granted and no other app is using the camera.');
+                    }
+                } else {
+                     alert('Could not access your camera. Please ensure permissions are granted.');
+                }
             }
         } else {
             alert('Your browser does not support camera access.');
@@ -75,22 +81,52 @@ document.addEventListener('DOMContentLoaded', () => {
     // Stop the webcam
     function stopCamera() {
         if (stream) {
+            // Turn off flashlight if it was on
+            if (isFlashOn) toggleFlashlight(false); 
             stream.getTracks().forEach(track => track.stop());
         }
         clearInterval(detectionInterval);
-        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         isCameraOn = false;
         video.srcObject = null;
         cameraBtn.textContent = '📷 Turn On Camera';
     }
 
+    // ***NEW***: Function to control the device flashlight (torch)
+    async function toggleFlashlight() {
+        if (!stream) {
+            alert("Please turn on the camera first to use the flash.");
+            return;
+        }
+        const videoTrack = stream.getVideoTracks()[0];
+        const capabilities = videoTrack.getCapabilities();
+
+        if (capabilities.torch) {
+            try {
+                await videoTrack.applyConstraints({
+                    advanced: [{ torch: !isFlashOn }]
+                });
+                isFlashOn = !isFlashOn;
+                flashBtn.style.backgroundColor = isFlashOn ? '#ffff8d' : '';
+                flashBtn.style.color = isFlashOn ? '#000' : '';
+            } catch (error) {
+                console.error('Error controlling flashlight:', error);
+                alert("Could not control flashlight. Your device may not support it.");
+            }
+        } else {
+            // Fallback to screen flash if torch is not supported
+            console.log("Device flashlight not supported. Using screen flash.");
+            flashOverlay.classList.add('flash');
+            setTimeout(() => {
+                flashOverlay.classList.remove('flash');
+            }, 150);
+        }
+    }
+
     // Detection loop
     async function detectFrame() {
         if (!model || !isCameraOn || video.paused || video.ended) return;
-
-        // Draw video frame to canvas first
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
         const predictions = await model.detect(video);
         drawBoundingBoxes(predictions);
     }
@@ -98,32 +134,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Draw bounding boxes and labels
     function drawBoundingBoxes(predictions) {
         const filteredPredictions = predictions.filter(p => {
-            if (detectionMode === 'animals') {
-                return animalList.includes(p.class);
-            }
-            return true; // 'all' mode
+            if (detectionMode === 'animals') return animalList.includes(p.class);
+            return true;
         });
         
         filteredPredictions.forEach(prediction => {
             const [x, y, width, height] = prediction.bbox;
             const label = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
-            
-            // Styling
-            ctx.strokeStyle = getColor(prediction.class);
+            const color = getColor(prediction.class);
+
+            ctx.strokeStyle = color;
             ctx.lineWidth = 3;
-            ctx.fillStyle = getColor(prediction.class);
+            ctx.fillStyle = color;
             ctx.font = '18px Arial';
 
-            // Draw the bounding box
             ctx.beginPath();
             ctx.rect(x, y, width, height);
             ctx.stroke();
 
-            // Draw the label background
             const textWidth = ctx.measureText(label).width;
             ctx.fillRect(x, y, textWidth + 10, 25);
             
-            // Draw the label text
             ctx.fillStyle = '#FFFFFF';
             ctx.fillText(label, x + 5, y + 18);
         });
@@ -136,63 +167,30 @@ document.addEventListener('DOMContentLoaded', () => {
         return '#e74c3c'; // Red for other objects
     }
 
-    // Menu Toggle
-    menuToggle.addEventListener('click', () => {
+    // Event Listeners
+    cameraBtn.addEventListener('click', () => isCameraOn ? stopCamera() : startCamera());
+    flashBtn.addEventListener('click', toggleFlashlight);
+    menuToggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent document click from closing it immediately
         menuDropdown.classList.toggle('hidden');
     });
-    // Close menu if clicking outside
-    document.addEventListener('click', (e) => {
-        if (!menuContainer.contains(e.target)) {
-            menuDropdown.classList.add('hidden');
-        }
-    });
-    const menuContainer = document.querySelector('.menu-container');
-
-    // Help Modal
-    helpBtn.addEventListener('click', () => {
-        helpModal.classList.remove('hidden');
-    });
-    closeModal.addEventListener('click', () => {
-        helpModal.classList.add('hidden');
-    });
-    window.addEventListener('click', (e) => {
-        if (e.target === helpModal) {
-            helpModal.classList.add('hidden');
-        }
-    });
-
-    // Snapshot
+    helpBtn.addEventListener('click', () => helpModal.classList.remove('hidden'));
+    closeModal.addEventListener('click', () => helpModal.classList.add('hidden'));
     snapshotBtn.addEventListener('click', () => {
-        if (!isCameraOn) {
-            alert('Please turn on the camera first.');
-            return;
-        }
-        const dataUrl = canvas.toDataURL('image/png');
+        if (!isCameraOn) return alert('Please turn on the camera first.');
         const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `snapshot-${new Date().toISOString()}.png`;
-        document.body.appendChild(link);
+        link.href = canvas.toDataURL('image/png');
+        link.download = `detection-snapshot-${Date.now()}.png`;
         link.click();
-        document.body.removeChild(link);
     });
-
-    // Switch Detection Mode
     modeBtn.addEventListener('click', () => {
-        if (detectionMode === 'all') {
-            detectionMode = 'animals';
-            modeBtn.textContent = '🔁 Switch to All Objects';
-        } else {
-            detectionMode = 'all';
-            modeBtn.textContent = '🔁 Switch to Animals';
-        }
-        menuDropdown.classList.add('hidden'); // Close menu after selection
+        detectionMode = (detectionMode === 'all') ? 'animals' : 'all';
+        modeBtn.textContent = (detectionMode === 'all') ? '🔁 Switch to Animals' : '🔁 Switch to All';
     });
-
-    // Flash Button
-    flashBtn.addEventListener('click', () => {
-        flashOverlay.classList.add('flash');
-        setTimeout(() => {
-            flashOverlay.classList.remove('flash');
-        }, 150); // Flash duration
+    
+    // Close menus when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!menuContainer.contains(e.target)) menuDropdown.classList.add('hidden');
+        if (e.target === helpModal) helpModal.classList.add('hidden');
     });
 });
