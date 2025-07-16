@@ -1,0 +1,21 @@
+{
+    "name": "Object & Animal Observer",
+    "short_name": "Observer",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#121212",
+    "theme_color": "#121212",
+    "description": "A real-time object and animal detection web app.",
+    "icons": [
+        {
+            "src": "https://www.gstatic.com/images/branding/product/1x/camera_48dp.png",
+            "sizes": "48x48",
+            "type": "image/png"
+        },
+        {
+            "src": "https://www.gstatic.com/images/branding/product/1x/camera_192dp.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ]
+}
