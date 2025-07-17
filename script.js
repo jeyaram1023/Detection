@@ -41,6 +41,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- CAMERA & DETECTION ---
     async function startCamera() {
+        // **NEW**: Check for secure context before proceeding
+        if (location.protocol !== 'https:') {
+            if (location.hostname !== "127.0.0.1" && location.hostname !== "localhost") {
+                statusDisplay.innerText = 'Error: Camera requires a secure (HTTPS) connection.';
+                statusDisplay.style.display = 'block';
+                cameraBtn.disabled = true;
+                return;
+            }
+        }
+
         if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
             try {
                 const streamConfig = { 
@@ -61,14 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 };
             } catch (err) {
                 console.error("Error accessing webcam", err);
-                statusDisplay.innerText = 'Error: Could not access webcam. Please grant permission.';
+                statusDisplay.innerText = 'Error: Could not access webcam. Please grant permission and ensure it is not in use.';
                 statusDisplay.style.display = 'block';
-                // Fallback to front camera if environment fails
-                if (err.name === "OverconstrainedError" || err.name === "NotReadableError") {
-                    streamConfig.video.facingMode = 'user';
-                    stream = await navigator.mediaDevices.getUserMedia(streamConfig);
-                    video.srcObject = stream;
-                }
             }
         }
     }
@@ -96,6 +100,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawDetections(predictions) {
+        // Match canvas dimensions to video to prevent distortion
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.font = '16px sans-serif';
         ctx.textBaseline = 'top';
@@ -109,17 +117,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const [x, y, width, height] = prediction.bbox;
             const label = `${prediction.class} (${Math.round(prediction.score * 100)}%)`;
             
-            // Bounding box
             ctx.strokeStyle = '#00FFFF';
             ctx.lineWidth = 2;
             ctx.strokeRect(x, y, width, height);
             
-            // Label background
             ctx.fillStyle = '#00FFFF';
             const textWidth = ctx.measureText(label).width;
             ctx.fillRect(x, y, textWidth + 8, 20);
             
-            // Label text
             ctx.fillStyle = '#000000';
             ctx.fillText(label, x + 4, y + 4);
         });
@@ -127,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- UI & CONTROLS ---
     function updateUI() {
-        // Camera Button
         if (isCameraOn) {
             cameraBtn.innerText = '📷 Turn Camera Off';
             cameraBtn.classList.add('off');
@@ -137,22 +141,23 @@ document.addEventListener('DOMContentLoaded', () => {
             flashBtn.disabled = true;
             flashBtn.innerText = '💡 Flash Off';
         }
-
-        // Menu
         menuDropdown.classList.toggle('hidden', !isMenuOpen);
-
-        // Mode Button
         modeBtn.innerText = `🔁 Switch Mode: ${detectionMode === 'all' ? 'All' : 'Animals'}`;
     }
 
-    function toggleFlash() {
+    async function toggleFlash() {
         if (!stream) return;
         const track = stream.getVideoTracks()[0];
-        isFlashOn = !isFlashOn;
-        track.applyConstraints({
-            advanced: [{ torch: isFlashOn }]
-        }).catch(e => console.error('Flash control failed: ', e));
-        flashBtn.innerText = isFlashOn ? '💡 Flash On' : '💡 Flash Off';
+        try {
+            isFlashOn = !isFlashOn;
+            await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
+            flashBtn.innerText = isFlashOn ? '💡 Flash On' : '💡 Flash Off';
+        } catch(e) {
+            console.error('Flash control failed: ', e);
+            alert('Flash control is not supported on this device/browser.');
+            isFlashOn = false; // Reset state
+            flashBtn.disabled = true;
+        }
     }
     
     async function checkFlashCapability() {
@@ -160,13 +165,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const track = stream.getVideoTracks()[0];
         try {
             const capabilities = track.getCapabilities();
-            if (capabilities.torch) {
-                flashBtn.disabled = false;
-            } else {
-                console.log("Flash/Torch not supported by this device/camera.");
-            }
+            flashBtn.disabled = !capabilities.torch;
         } catch(e) {
             console.error('Could not check flash capabilities: ', e);
+            flashBtn.disabled = true;
         }
     }
     
@@ -175,14 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Please turn on the camera first.');
             return;
         }
-        // Draw the current video frame onto the canvas
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // Redraw the latest detections on top
         model.detect(video).then(predictions => {
             drawDetections(predictions);
-            
-            // Trigger download
             const dataUrl = canvas.toDataURL('image/png');
             const link = document.createElement('a');
             link.href = dataUrl;
@@ -195,11 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- EVENT LISTENERS ---
     cameraBtn.addEventListener('click', () => {
-        if (isCameraOn) {
-            stopCamera();
-        } else {
-            startCamera();
-        }
+        isCameraOn ? stopCamera() : startCamera();
     });
 
     flashBtn.addEventListener('click', toggleFlash);
@@ -211,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     helpBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        alert('--- Object & Animal Observer ---\n\n1. Turn on the camera to start detection.\n2. Detected objects will be highlighted.\n3. Use the menu for more options like taking a snapshot or switching detection modes.\n4. The flash button works on supported mobile devices.');
+        alert('--- Object & Animal Observer ---\n\n1. Use a secure (HTTPS) connection or a local server.\n2. Turn on the camera to start detection.\n3. Detected objects will be highlighted.\n4. Use the menu for more options.');
         isMenuOpen = false;
         updateUI();
     });
@@ -223,15 +217,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
     });
 
-
-
     modeBtn.addEventListener('click', (e) => {
         e.preventDefault();
         detectionMode = (detectionMode === 'all') ? 'animals' : 'all';
         updateUI();
     });
     
-    // Close menu if clicking outside
     document.addEventListener('click', (e) => {
         if (!menuToggle.contains(e.target) && !menuDropdown.contains(e.target) && isMenuOpen) {
             isMenuOpen = false;
