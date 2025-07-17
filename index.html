@@ -2,47 +2,33 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Object & Animal Observer</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@latest/dist/coco-ssd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 </head>
 <body>
-    <div id="loading-container">
-        <div class="spinner"></div>
-        <p id="loading-text">Loading AI Model...</p>
-    </div>
-
     <video id="webcam" autoplay muted playsinline></video>
     <canvas id="canvas"></canvas>
 
-    <div id="flash-overlay"></div>
+    <div id="status">Loading Model... Please Wait.</div>
 
     <div class="menu-container">
-        <button id="menu-toggle" class="ui-button">☰</button>
+        <button id="menu-toggle">☰</button>
         <div id="menu-dropdown" class="hidden">
-            <button id="help-btn" class="ui-button">📘 Help</button>
-            <button id="snapshot-btn" class="ui-button">🖼️ Snapshot</button>
-            <button id="mode-btn" class="ui-button">🔁 Switch to Animals</button>
+            <a href="#" id="help-btn">📘 Help</a>
+            <a href="#" id="snapshot-btn">🖼️ Snapshot</a>
+            <a href="#" id="mode-btn">🔁 Switch Mode: All</a>
+            <a href="https://opencv.org/" target="_blank" rel="noopener noreferrer">OpenCV Site</a>
+            <a href="https://docs.opencv.org/4.x/d5/d10/tutorial_js_root.html" target="_blank" rel="noopener noreferrer">OpenCV.js Docs</a>
+            <a href="https://www.tensorflow.org/js" target="_blank" rel="noopener noreferrer">TensorFlow.js</a>
         </div>
     </div>
 
     <div class="controls-container">
-        <button id="camera-btn" class="ui-button">📷 Turn On Camera</button>
-        <button id="flash-btn" class="ui-button">💡 Flash</button>
-    </div>
-
-    <div id="help-modal" class="hidden">
-        <div class="modal-content">
-            <span id="close-modal">&times;</span>
-            <h2>How to Use</h2>
-            <p><strong>Camera On/Off:</strong> Use the 📷 button to start or stop your webcam. Please grant camera permissions when prompted.</p>
-            <p><strong>Flashlight:</strong> The 💡 button will turn on your phone's flashlight if supported. Otherwise, it will flash the screen white.</p>
-            <p><strong>Switch Mode:</strong> Use the 🔁 button in the menu to toggle between detecting all objects and only specific animals.</p>
-            <p><strong>Snapshot:</strong> Capture the current view with detections using the 🖼️ button.</p>
-        </div>
+        <button id="camera-btn">📷 Turn Camera On</button>
+        <button id="flash-btn" disabled>💡 Flash Off</button>
     </div>
 
     <script src="script.js"></script>
