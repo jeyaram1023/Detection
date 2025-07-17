@@ -4,13 +4,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const statusDisplay = document.getElementById('status');
-    
     const menuToggle = document.getElementById('menu-toggle');
     const menuDropdown = document.getElementById('menu-dropdown');
     const helpBtn = document.getElementById('help-btn');
     const snapshotBtn = document.getElementById('snapshot-btn');
     const modeBtn = document.getElementById('mode-btn');
-    
     const cameraBtn = document.getElementById('camera-btn');
     const flashBtn = document.getElementById('flash-btn');
 
@@ -25,55 +23,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const ANIMAL_CLASSES = ['bird', 'cat', 'dog', 'horse', 'sheep', 'cow', 'elephant', 'bear', 'zebra', 'giraffe', 'person'];
 
-    // --- MODEL LOADING ---
-    async function loadModel() {
-        statusDisplay.innerText = 'Loading Model... Please Wait.';
-        statusDisplay.style.display = 'block';
-        try {
-            model = await cocoSsd.load();
-            statusDisplay.innerText = 'Model Loaded. Turn on Camera to Start.';
-            cameraBtn.disabled = false;
-        } catch (err) {
-            console.error("Failed to load model", err);
-            statusDisplay.innerText = 'Error: Could not load model.';
+    // --- 1. INITIALIZATION ---
+    async function initialize() {
+        // Security check for camera access
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
+            statusDisplay.innerText = 'Error: Camera access requires a secure (HTTPS) connection. Please use a local server or deploy to a secure host.';
+            return;
         }
+        
+        statusDisplay.innerText = 'Loading Model...';
+        model = await cocoSsd.load();
+        statusDisplay.innerText = 'Ready! Press 📷 to start.';
+        cameraBtn.disabled = false;
+        cameraBtn.innerHTML = '📷';
+        updateUI(); // Set initial button state
     }
 
-    // --- CAMERA & DETECTION ---
-    async function startCamera() {
-        // **NEW**: Check for secure context before proceeding
-        if (location.protocol !== 'https:') {
-            if (location.hostname !== "127.0.0.1" && location.hostname !== "localhost") {
-                statusDisplay.innerText = 'Error: Camera requires a secure (HTTPS) connection.';
-                statusDisplay.style.display = 'block';
-                cameraBtn.disabled = true;
-                return;
-            }
+    // --- 2. CAMERA & DETECTION ---
+    async function toggleCamera() {
+        if (isCameraOn) {
+            stopCamera();
+        } else {
+            await startCamera();
         }
+        updateUI();
+    }
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            try {
-                const streamConfig = { 
-                    video: { 
-                        facingMode: 'environment' // Prefer back camera
-                    } 
-                };
-                stream = await navigator.mediaDevices.getUserMedia(streamConfig);
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    isCameraOn = true;
-                    statusDisplay.style.display = 'none';
-                    updateUI();
-                    detectObjects();
-                    checkFlashCapability();
-                };
-            } catch (err) {
-                console.error("Error accessing webcam", err);
-                statusDisplay.innerText = 'Error: Could not access webcam. Please grant permission and ensure it is not in use.';
-                statusDisplay.style.display = 'block';
-            }
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            await video.play(); // Use play() to ensure it's running
+            
+            isCameraOn = true;
+            statusDisplay.style.display = 'none';
+            checkFlashCapability();
+            detectObjects();
+        } catch (err) {
+            console.error("Error accessing webcam:", err);
+            statusDisplay.innerText = 'Error: Could not access camera. Please grant permission.';
+            statusDisplay.style.display = 'block';
+            isCameraOn = false;
         }
     }
 
@@ -83,35 +73,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         video.srcObject = null;
         isCameraOn = false;
-        isFlashOn = false;
+        isFlashOn = false; // Reset flash state
         cancelAnimationFrame(animationFrameId);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        statusDisplay.innerText = 'Camera Off.';
+        statusDisplay.innerText = 'Camera Off. Press 📷 to start.';
         statusDisplay.style.display = 'block';
-        updateUI();
     }
 
     async function detectObjects() {
         if (!isCameraOn || !model) return;
-
+        
         const predictions = await model.detect(video);
         drawDetections(predictions);
         animationFrameId = requestAnimationFrame(detectObjects);
     }
 
     function drawDetections(predictions) {
-        // Match canvas dimensions to video to prevent distortion
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
-        
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.font = '16px sans-serif';
-        ctx.textBaseline = 'top';
 
-        let filteredPredictions = predictions;
-        if (detectionMode === 'animals') {
-            filteredPredictions = predictions.filter(p => ANIMAL_CLASSES.includes(p.class));
-        }
+        let filteredPredictions = detectionMode === 'all' 
+            ? predictions 
+            : predictions.filter(p => ANIMAL_CLASSES.includes(p.class));
 
         filteredPredictions.forEach(prediction => {
             const [x, y, width, height] = prediction.bbox;
@@ -119,30 +103,31 @@ document.addEventListener('DOMContentLoaded', () => {
             
             ctx.strokeStyle = '#00FFFF';
             ctx.lineWidth = 2;
-            ctx.strokeRect(x, y, width, height);
+            ctx.font = '16px sans-serif';
+
+            ctx.beginPath();
+            ctx.rect(x, y, width, height);
+            ctx.stroke();
             
             ctx.fillStyle = '#00FFFF';
             const textWidth = ctx.measureText(label).width;
             ctx.fillRect(x, y, textWidth + 8, 20);
             
             ctx.fillStyle = '#000000';
-            ctx.fillText(label, x + 4, y + 4);
+            ctx.fillText(label, x + 4, y + 14);
         });
     }
 
-    // --- UI & CONTROLS ---
+    // --- 3. UI & CONTROLS ---
     function updateUI() {
-        if (isCameraOn) {
-            cameraBtn.innerText = '📷 Turn Camera Off';
-            cameraBtn.classList.add('off');
-        } else {
-            cameraBtn.innerText = '📷 Turn Camera On';
-            cameraBtn.classList.remove('off');
-            flashBtn.disabled = true;
-            flashBtn.innerText = '💡 Flash Off';
-        }
+        cameraBtn.classList.toggle('off', !isCameraOn);
+        cameraBtn.innerHTML = isCameraOn ? '⏹️' : '📷';
+
+        flashBtn.disabled = !isCameraOn;
+        flashBtn.classList.toggle('on', isFlashOn);
+        
+        modeBtn.innerText = `🔁 Mode: ${detectionMode === 'all' ? 'All Objects' : 'Animals Only'}`;
         menuDropdown.classList.toggle('hidden', !isMenuOpen);
-        modeBtn.innerText = `🔁 Switch Mode: ${detectionMode === 'all' ? 'All' : 'Animals'}`;
     }
 
     async function toggleFlash() {
@@ -151,25 +136,19 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             isFlashOn = !isFlashOn;
             await track.applyConstraints({ advanced: [{ torch: isFlashOn }] });
-            flashBtn.innerText = isFlashOn ? '💡 Flash On' : '💡 Flash Off';
-        } catch(e) {
-            console.error('Flash control failed: ', e);
-            alert('Flash control is not supported on this device/browser.');
-            isFlashOn = false; // Reset state
-            flashBtn.disabled = true;
+            updateUI();
+        } catch (e) {
+            console.error('Flash control failed:', e);
+            alert('Flash control is not supported on this device.');
+            isFlashOn = false;
         }
     }
     
-    async function checkFlashCapability() {
+    function checkFlashCapability() {
         if (!stream) return;
         const track = stream.getVideoTracks()[0];
-        try {
-            const capabilities = track.getCapabilities();
-            flashBtn.disabled = !capabilities.torch;
-        } catch(e) {
-            console.error('Could not check flash capabilities: ', e);
-            flashBtn.disabled = true;
-        }
+        const capabilities = track.getCapabilities();
+        flashBtn.disabled = !(capabilities.torch && isCameraOn);
     }
     
     function takeSnapshot() {
@@ -178,26 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        drawDetections(model.detect(video).then(p => drawDetections(p))); // Re-draw detections on the still frame
         
-        model.detect(video).then(predictions => {
-            drawDetections(predictions);
-            const dataUrl = canvas.toDataURL('image/png');
-            const link = document.createElement('a');
-            link.href = dataUrl;
-            link.download = `snapshot-${new Date().toISOString()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `detection-snapshot-${Date.now()}.png`;
+        link.click();
     }
 
-    // --- EVENT LISTENERS ---
-    cameraBtn.addEventListener('click', () => {
-        isCameraOn ? stopCamera() : startCamera();
-    });
-
+    // --- 4. EVENT LISTENERS ---
+    cameraBtn.addEventListener('click', toggleCamera);
     flashBtn.addEventListener('click', toggleFlash);
-
+    
     menuToggle.addEventListener('click', () => {
         isMenuOpen = !isMenuOpen;
         updateUI();
@@ -205,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     helpBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        alert('--- Object & Animal Observer ---\n\n1. Use a secure (HTTPS) connection or a local server.\n2. Turn on the camera to start detection.\n3. Detected objects will be highlighted.\n4. Use the menu for more options.');
+        alert('--- Help ---\n\n1. Press 📷 to start/stop the camera.\n2. Press 💡 to toggle the flash (mobile only).\n3. The app will automatically highlight detected objects.\n4. Use the menu to take a snapshot or switch detection modes.');
         isMenuOpen = false;
         updateUI();
     });
@@ -223,14 +195,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateUI();
     });
     
-    document.addEventListener('click', (e) => {
-        if (!menuToggle.contains(e.target) && !menuDropdown.contains(e.target) && isMenuOpen) {
-            isMenuOpen = false;
-            updateUI();
-        }
-    });
-
-    // --- INITIALIZATION ---
-    cameraBtn.disabled = true;
-    loadModel();
+    // --- START THE APP ---
+    initialize();
 });
